@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order Confirmation & Planning · Production Control</title>
+<style>
+  :root{
+    --bg-1:#0b1437;
+    --bg-2:#1a1252;
+    --bg-3:#3a1078;
+    --ink:#0c1532;
+    --ink-soft:#3a4670;
+    --muted:#7c87a8;
+    --line:rgba(255,255,255,0.18);
+    --card:rgba(255,255,255,0.92);
+    --card-line:rgba(255,255,255,0.6);
+    --grad-1:linear-gradient(135deg,#22d3ee 0%,#a855f7 50%,#ec4899 100%);
+    --grad-2:linear-gradient(135deg,#fbbf24 0%,#ec4899 100%);
+    --grad-good:linear-gradient(135deg,#10b981 0%,#22d3ee 100%);
+    --sans:'Inter','Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:var(--sans);color:var(--ink);
+    background:
+      radial-gradient(ellipse at 15% 10%, rgba(168,85,247,0.45) 0%, transparent 45%),
+      radial-gradient(ellipse at 85% 90%, rgba(34,211,238,0.4) 0%, transparent 45%),
+      radial-gradient(ellipse at 70% 20%, rgba(236,72,153,0.35) 0%, transparent 40%),
+      linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-3) 100%);
+    background-attachment:fixed;overflow:hidden;min-height:100vh;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;
+    background-image:repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0 2px, transparent 2px 6px);
+    pointer-events:none;z-index:0;
+  }
+
+  .app{height:100vh;display:flex;flex-direction:column;padding:14px 18px 14px;position:relative;z-index:1;}
+
+  /* TOP BAR */
+  .topbar{display:flex;align-items:center;gap:16px;padding:0 4px 12px;flex-shrink:0;}
+  .logo{
+    width:42px;height:42px;border-radius:11px;background:var(--grad-1);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:800;font-size:18px;letter-spacing:-0.04em;
+    box-shadow:0 6px 22px rgba(168,85,247,0.55), inset 0 1px 0 rgba(255,255,255,0.4);
+    position:relative;overflow:hidden;
+  }
+  .logo::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,0.45) 50%,transparent 70%);
+    animation:shimmer 3.5s ease-in-out infinite;
+  }
+  @keyframes shimmer{0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
+  .title-block{flex:1;}
+  .title-block .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:0.18em;color:rgba(255,255,255,0.55);text-transform:uppercase;}
+  .title-block h1{color:#fff;font-size:18px;font-weight:700;letter-spacing:-0.015em;margin-top:1px;}
+  .title-block h1 .accent{background:var(--grad-2);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .meta{display:flex;align-items:center;gap:18px;color:rgba(255,255,255,0.7);font-size:12px;}
+  .meta .live{
+    display:inline-flex;align-items:center;gap:6px;padding:5px 11px;
+    background:rgba(16,185,129,0.18);border:1px solid rgba(16,185,129,0.4);border-radius:99px;
+    font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#6ee7b7;
+  }
+  .meta .live .dot{width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulse 1.5s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+  /* TABS */
+  .tabs{
+    display:flex;gap:6px;padding:4px;
+    background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);
+    border-radius:12px;flex-shrink:0;margin-bottom:12px;backdrop-filter:blur(10px);
+  }
+  .tab{
+    flex:1;padding:9px 16px;background:transparent;border:none;border-radius:8px;
+    color:rgba(255,255,255,0.6);font-family:var(--sans);font-size:13px;font-weight:600;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:all .2s ease;letter-spacing:0.01em;
+  }
+  .tab:hover{color:#fff;background:rgba(255,255,255,0.05);}
+  .tab.active{background:var(--grad-1);color:#fff;box-shadow:0 4px 14px rgba(168,85,247,0.5), inset 0 1px 0 rgba(255,255,255,0.3);}
+  .tab .count{background:rgba(255,255,255,0.2);padding:1px 8px;border-radius:99px;font-family:var(--mono);font-size:10px;}
+  .tab.active .count{background:rgba(255,255,255,0.3);}
+  .tab.alert .count{background:linear-gradient(135deg,#fbbf24,#ec4899);color:#fff;font-weight:700;}
+
+  .view{flex:1;display:none;flex-direction:column;min-height:0;}
+  .view.active{display:flex;}
+
+  /* FORM GRID */
+  form{flex:1;display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;min-height:0;}
+  .panel{
+    background:var(--card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1px solid var(--card-line);border-radius:14px;padding:14px 14px 12px;
+    display:flex;flex-direction:column;gap:9px;
+    box-shadow:0 12px 40px rgba(8,5,30,0.35), inset 0 1px 0 rgba(255,255,255,0.95);
+    position:relative;overflow-y:auto;overflow-x:hidden;
+  }
+  .panel::-webkit-scrollbar{width:4px;}
+  .panel::-webkit-scrollbar-thumb{background:rgba(168,85,247,0.35);border-radius:99px;}
+
+  .panel-head{display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px dashed rgba(168,85,247,0.25);margin-bottom:2px;}
+  .panel-head .badge{width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;flex-shrink:0;}
+  .panel:nth-of-type(1) .badge{background:linear-gradient(135deg,#22d3ee,#3b82f6);box-shadow:0 4px 12px rgba(34,211,238,0.5);}
+  .panel:nth-of-type(2) .badge{background:linear-gradient(135deg,#a855f7,#ec4899);box-shadow:0 4px 12px rgba(168,85,247,0.5);}
+  .panel:nth-of-type(3) .badge{background:linear-gradient(135deg,#ec4899,#f97316);box-shadow:0 4px 12px rgba(236,72,153,0.5);}
+  .panel:nth-of-type(4) .badge{background:linear-gradient(135deg,#fbbf24,#10b981);box-shadow:0 4px 12px rgba(251,191,36,0.5);}
+  .panel-head .ttl{font-size:12px;font-weight:700;letter-spacing:0.02em;color:var(--ink);text-transform:uppercase;}
+  .panel-head .ttl small{display:block;font-weight:500;font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0;margin-top:1px;}
+
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label.q{font-size:10.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.06em;display:flex;align-items:center;gap:4px;}
+  .field label.q .req{color:#ec4899;font-size:11px;}
+  .field .hint{font-size:10px;color:var(--muted);font-style:italic;}
+
+  input[type=text], input[type=number], input[type=date], input[type=search]{
+    width:100%;padding:7px 10px;border:1px solid rgba(168,85,247,0.18);
+    border-radius:8px;font-size:12.5px;font-family:var(--mono);
+    background:rgba(255,255,255,0.7);color:var(--ink);transition:all .18s ease;
+  }
+  input[type=text]:focus, input[type=number]:focus, input[type=date]:focus, input[type=search]:focus{
+    outline:none;border-color:transparent;background:#fff;
+    box-shadow:0 0 0 2px rgba(168,85,247,0.5), 0 4px 14px rgba(168,85,247,0.2);
+  }
+  input::placeholder{color:#aab1c8;font-family:var(--mono);}
+
+  /* prefilled glow */
+  input.prefilled{
+    background:linear-gradient(135deg, rgba(34,211,238,0.12), rgba(168,85,247,0.08));
+    border-color:rgba(34,211,238,0.5);
+  }
+
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+  /* PILL RADIO */
+  .options{display:flex;flex-wrap:wrap;gap:4px;}
+  .opt{position:relative;}
+  .opt input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0;width:100%;height:100%;}
+  .opt span{display:inline-block;padding:4px 10px;border:1px solid rgba(168,85,247,0.25);border-radius:99px;font-size:11px;font-weight:500;color:var(--ink-soft);background:rgba(255,255,255,0.55);transition:all .15s ease;white-space:nowrap;}
+  .opt input:hover + span{border-color:rgba(168,85,247,0.6);background:#fff;}
+  .opt input:checked + span{background:var(--grad-1);border-color:transparent;color:#fff;font-weight:600;box-shadow:0 3px 10px rgba(168,85,247,0.45), inset 0 1px 0 rgba(255,255,255,0.3);}
+  .yesno .opt input[value="Yes"]:checked + span{background:var(--grad-good);box-shadow:0 3px 10px rgba(16,185,129,0.45), inset 0 1px 0 rgba(255,255,255,0.3);}
+  .yesno .opt input[value="No"]:checked + span{background:linear-gradient(135deg,#f87171,#ec4899);box-shadow:0 3px 10px rgba(236,72,153,0.45), inset 0 1px 0 rgba(255,255,255,0.3);}
+
+  /* UV CONDITIONAL */
+  #uvField{display:none;border:1px solid rgba(251,191,36,0.5);background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(236,72,153,0.08));border-radius:9px;padding:7px 9px;}
+  #uvField .flag{font-family:var(--mono);font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:#b45309;margin-bottom:4px;display:flex;align-items:center;gap:4px;}
+  #uvField .flag::before{content:"⚡";font-size:11px;}
+  #uvField .wa-hint{font-size:10px;color:#92400e;margin-top:5px;font-style:italic;}
+
+  /* PREFILL BANNER */
+  .prefill-banner{
+    display:none;
+    align-items:center;gap:10px;
+    padding:8px 14px;margin-bottom:10px;
+    background:linear-gradient(135deg,rgba(34,211,238,0.18),rgba(168,85,247,0.18));
+    border:1px solid rgba(34,211,238,0.4);border-radius:10px;
+    color:#fff;font-size:12px;backdrop-filter:blur(10px);flex-shrink:0;
+  }
+  .prefill-banner .pf-ico{font-size:14px;}
+  .prefill-banner strong{font-weight:700;}
+  .prefill-banner button{
+    margin-left:auto;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);
+    color:#fff;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;
+  }
+  .prefill-banner button:hover{background:rgba(255,255,255,0.25);}
+
+  /* FOOTER */
+  .footer{flex-shrink:0;margin-top:12px;display:flex;align-items:center;gap:14px;padding:0 4px;}
+  .footer .left{flex:1;display:flex;flex-direction:column;gap:2px;}
+  .footer .help{font-size:11px;color:rgba(255,255,255,0.65);}
+  #status{font-size:11.5px;font-weight:600;min-height:14px;}
+  #status.ok{color:#6ee7b7;} #status.err{color:#fda4af;}
+
+  button#submitBtn{
+    position:relative;background:var(--grad-1);color:#fff;border:none;
+    padding:11px 28px;font-size:13px;font-weight:700;letter-spacing:0.02em;border-radius:10px;cursor:pointer;
+    box-shadow:0 6px 22px rgba(168,85,247,0.55), inset 0 1px 0 rgba(255,255,255,0.4);
+    overflow:hidden;transition:transform .15s ease, box-shadow .15s ease;text-transform:uppercase;
+  }
+  button#submitBtn::after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,0.5) 50%,transparent 70%);transform:translateX(-100%);transition:transform .6s ease;}
+  button#submitBtn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(168,85,247,0.7), inset 0 1px 0 rgba(255,255,255,0.5);}
+  button#submitBtn:hover::after{transform:translateX(100%);}
+  button#submitBtn:disabled{opacity:0.7;cursor:wait;transform:none;}
+
+  .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);
+    background:rgba(255,255,255,0.97);backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,0.6);border-radius:16px;padding:22px 28px;
+    box-shadow:0 20px 60px rgba(8,5,30,0.5);text-align:center;z-index:50;
+    opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;}
+  .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto;}
+  .toast .check{width:48px;height:48px;border-radius:50%;background:var(--grad-good);color:#fff;font-size:24px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(16,185,129,0.5);}
+  .toast h3{font-size:16px;font-weight:700;color:var(--ink);}
+  .toast p{font-size:12.5px;color:var(--muted);margin-top:4px;}
+  .toast .wa-tag{display:inline-block;margin-top:8px;padding:3px 10px;background:rgba(37,211,102,0.15);border:1px solid rgba(37,211,102,0.4);border-radius:99px;font-size:10.5px;color:#16a34a;font-weight:600;}
+
+  /* RESPONSES / PENDING TABLES */
+  .responses-shell{
+    flex:1;display:flex;flex-direction:column;
+    background:var(--card);backdrop-filter:blur(20px);
+    border:1px solid var(--card-line);border-radius:14px;
+    box-shadow:0 12px 40px rgba(8,5,30,0.35), inset 0 1px 0 rgba(255,255,255,0.95);
+    overflow:hidden;min-height:0;
+  }
+  .resp-toolbar{
+    flex-shrink:0;display:flex;align-items:center;gap:10px;
+    padding:12px 14px;border-bottom:1px solid rgba(168,85,247,0.15);
+    background:linear-gradient(135deg, rgba(34,211,238,0.06), rgba(168,85,247,0.06));
+  }
+  .search-wrap{position:relative;flex:1;max-width:420px;}
+  .search-wrap::before{content:"⌕";position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;color:#a855f7;font-weight:bold;}
+  .search-input{width:100%;padding:8px 12px 8px 32px;font-family:var(--sans);font-size:13px;border:1px solid rgba(168,85,247,0.25);border-radius:9px;background:#fff;}
+
+  .resp-stats{display:flex;gap:14px;font-size:11px;color:var(--ink-soft);margin-left:auto;}
+  .resp-stats .chip{padding:5px 11px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.25);border-radius:99px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.05em;color:#7c3aed;text-transform:uppercase;}
+  .resp-stats .chip strong{color:#3a1078;}
+  .resp-stats .chip.warn{background:rgba(251,191,36,0.12);border-color:rgba(251,191,36,0.4);color:#b45309;}
+  .resp-stats .chip.warn strong{color:#92400e;}
+
+  .btn-ghost{padding:7px 14px;background:rgba(255,255,255,0.6);border:1px solid rgba(168,85,247,0.3);border-radius:9px;font-size:12px;font-weight:600;color:#7c3aed;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s ease;}
+  .btn-ghost:hover{background:#fff;border-color:#a855f7;}
+  .btn-ghost.spinning{opacity:0.6;pointer-events:none;}
+  .btn-ghost.spinning::before{content:"";width:12px;height:12px;border:2px solid rgba(168,85,247,0.3);border-top-color:#a855f7;border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .table-wrap{flex:1;overflow:auto;min-height:0;}
+  .table-wrap::-webkit-scrollbar{width:10px;height:10px;}
+  .table-wrap::-webkit-scrollbar-thumb{background:rgba(168,85,247,0.4);border-radius:99px;}
+  .table-wrap::-webkit-scrollbar-track{background:rgba(168,85,247,0.05);}
+
+  table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;}
+  thead th{
+    position:sticky;top:0;background:linear-gradient(135deg,#3a1078,#1a1252);color:#fff;
+    font-weight:600;text-align:left;padding:10px 12px;font-size:10.5px;letter-spacing:0.06em;
+    text-transform:uppercase;white-space:nowrap;border-bottom:2px solid #a855f7;z-index:2;
+  }
+  tbody td{padding:9px 12px;border-bottom:1px solid rgba(168,85,247,0.08);color:var(--ink);white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:11.5px;}
+  tbody td.timestamp{font-weight:600;color:#7c3aed;}
+  tbody tr{transition:background .12s ease;}
+  tbody tr:nth-child(even){background:rgba(168,85,247,0.025);}
+  tbody tr:hover{background:rgba(168,85,247,0.1);}
+  tbody td.cell-yes{color:#059669;font-weight:600;}
+  tbody td.cell-no{color:#dc2626;font-weight:600;}
+  tbody td.client-uv{color:#b45309;font-weight:700;}
+
+  .match{background:linear-gradient(135deg, rgba(251,191,36,0.7), rgba(236,72,153,0.5));color:#fff;padding:1px 4px;border-radius:3px;font-weight:600;}
+
+  /* Plan button in pending table */
+  .plan-btn{
+    display:inline-flex;align-items:center;gap:4px;
+    background:var(--grad-1);color:#fff;border:none;
+    padding:5px 12px;border-radius:7px;font-size:11px;font-weight:700;
+    cursor:pointer;font-family:var(--sans);letter-spacing:0.04em;text-transform:uppercase;
+    box-shadow:0 3px 10px rgba(168,85,247,0.4);transition:all .15s ease;
+  }
+  .plan-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(168,85,247,0.55);}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+  .empty-state .icon{font-size:42px;opacity:0.4;margin-bottom:8px;}
+  .empty-state h3{font-size:14px;color:var(--ink-soft);margin-bottom:4px;}
+  .empty-state p{font-size:12px;}
+
+  .pagination{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid rgba(168,85,247,0.15);background:rgba(168,85,247,0.03);font-size:11.5px;color:var(--ink-soft);}
+  .pager{display:flex;gap:5px;align-items:center;}
+  .pager button{width:28px;height:28px;border:1px solid rgba(168,85,247,0.25);background:#fff;color:#7c3aed;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;transition:all .15s ease;}
+  .pager button:hover:not(:disabled){background:#a855f7;color:#fff;border-color:#a855f7;}
+  .pager button:disabled{opacity:0.4;cursor:not-allowed;}
+  .pager .page-info{padding:0 10px;font-family:var(--mono);font-size:11px;}
+
+  @media (max-width:1280px){
+    body{overflow-y:auto;} .app{height:auto;min-height:100vh;}
+    form{grid-template-columns:repeat(2, 1fr);} .panel{overflow:visible;}
+    .responses-shell{min-height:600px;}
+  }
+  @media (max-width:720px){
+    form{grid-template-columns:1fr;} .meta{display:none;} .resp-stats{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="topbar">
+    <div class="logo">OC</div>
+    <div class="title-block">
+      <div class="eyebrow">Production Control · Live</div>
+      <h1>Order Confirmation <span class="accent">& Planning</span></h1>
+    </div>
+    <div class="meta">
+      <span class="live"><span class="dot"></span>Sheet connected</span>
+      <span id="dateNow"></span>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-view="entry">＋ New Entry</button>
+    <button class="tab alert" data-view="pending">
+      ⏳ Pending Planning
+      <span class="count" id="pendingCount">—</span>
+    </button>
+    <button class="tab" data-view="responses">
+      ☰ All Responses
+      <span class="count" id="tabCount">—</span>
+    </button>
+  </div>
+
+  <!-- ============================== ENTRY VIEW ============================== -->
+  <div class="view active" id="view-entry">
+
+    <div class="prefill-banner" id="prefillBanner">
+      <span class="pf-ico">✦</span>
+      <span>Pre-filled from <strong id="pfIE">—</strong> · <span id="pfClient">—</span>. Continue planning from <strong>Quality Doer</strong> step.</span>
+      <button id="pfClearBtn">Clear</button>
+    </div>
+
+    <form id="orderForm">
+
+      <!-- PANEL 1 -->
+      <div class="panel">
+        <div class="panel-head"><div class="badge">01</div><div class="ttl">Order Details<small>Identification & customer</small></div></div>
+        <div class="row">
+          <div class="field"><label class="q">IE No.</label><input type="text" name="IE No."></div>
+          <div class="field"><label class="q">DRG No.</label><input type="text" name="DRG No."></div>
+        </div>
+        <div class="row">
+          <div class="field"><label class="q">Quantity</label><input type="number" min="0" step="1" name="QUANTITY"></div>
+          <div class="field"><label class="q">ENT No.</label><input type="text" name="ENT No."></div>
+        </div>
+        <div class="field"><label class="q">Party Name</label>
+          <input type="text" id="partyName" name="PARTY NAME" autocomplete="off" placeholder="Customer / company">
+        </div>
+        <div class="field"><label class="q">Item Name</label><input type="text" name="ITEM NAME"></div>
+        <div class="field"><label class="q">DRG Link</label><input type="text" name="DRG LINK" placeholder="Paste link"></div>
+
+        <div id="uvField">
+          <span class="flag">UV Graphic detected · auto-added</span>
+          <div class="field">
+            <label class="q">Verify Old CAD for UV</label>
+            <div class="options yesno">
+              <label class="opt"><input type="radio" name="Verify Old CAD for UV" value="Yes"><span>Yes</span></label>
+              <label class="opt"><input type="radio" name="Verify Old CAD for UV" value="No"><span>No</span></label>
+            </div>
+          </div>
+          <div class="wa-hint">If <strong>Yes</strong>, a WhatsApp alert is sent to the designer (+91 97736 18401).</div>
+        </div>
+      </div>
+
+      <!-- PANEL 2 -->
+      <div class="panel">
+        <div class="panel-head"><div class="badge">02</div><div class="ttl">Pre-Operation<small>Manual OP0 / quality</small></div></div>
+        <div class="field"><label class="q">Quality & Checklist Doer</label>
+          <div class="options">
+            <label class="opt"><input type="radio" name="Quality and Checklist Doer" value="Bharat"><span>Bharat</span></label>
+            <label class="opt"><input type="radio" name="Quality and Checklist Doer" value="Deepak"><span>Deepak</span></label>
+            <label class="opt"><input type="radio" name="Quality and Checklist Doer" value="Ashish"><span>Ashish</span></label>
+            <label class="opt"><input type="radio" name="Quality and Checklist Doer" value="Mukesh"><span>Mukesh</span></label>
+            <label class="opt"><input type="radio" name="Quality and Checklist Doer" value="Sandeep"><span>Sandeep</span></label>
+          </div>
+        </div>
+        <div class="field"><label class="q">Manual Pre-Op (OP0) · PM/BM1</label>
+          <div class="options yesno">
+            <label class="opt"><input type="radio" name="Manual Pre-Operation (OP0) - PM/BM1" value="Yes"><span>Yes</span></label>
+            <label class="opt"><input type="radio" name="Manual Pre-Operation (OP0) - PM/BM1" value="No"><span>No</span></label>
+          </div>
+        </div>
+        <div class="field"><label class="q">Pre-OP 0 Machine</label>
+          <div class="options">
+            <label class="opt"><input type="radio" name="Pre-OP 0 Manual(Machine Name)" value="PM"><span>PM</span></label>
+            <label class="opt"><input type="radio" name="Pre-OP 0 Manual(Machine Name)" value="BM1"><span>BM1</span></label>
+            <label class="opt"><input type="radio" name="Pre-OP 0 Manual(Machine Name)" value="PM & BM1"><span>PM & BM1</span></label>
+          </div>
+        </div>
+        <div class="field"><label class="q">Planned Pre-OP 0 Start</label>
+          <input type="date" name="Planned Manual Pre-OP 0 start Date (If Available)">
+        </div>
+        <div class="field"><label class="q">Need CNC Operation <span class="req">*</span></label>
+          <div class="options yesno">
+            <label class="opt"><input type="radio" name="Need CNC Operation" value="Yes" required><span>Yes</span></label>
+            <label class="opt"><input type="radio" name="Need CNC Operation" value="No" required><span>No</span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 3 -->
+      <div class="panel">
+        <div class="panel-head"><div class="badge">03</div><div class="ttl">CNC Section<small>Design & CAM</small></div></div>
+        <div class="field"><label class="q">Design + Black Tick Doer</label>
+          <div class="options">
+            <label class="opt"><input type="radio" name="Design + Black tick Doer" value="Rajesh"><span>Rajesh</span></label>
+            <label class="opt"><input type="radio" name="Design + Black tick Doer" value="Customer"><span>Customer</span></label>
+            <label class="opt"><input type="radio" name="Design + Black tick Doer" value="Rahul"><span>Rahul</span></label>
+            <label class="opt"><input type="radio" name="Design + Black tick Doer" value="Ajit Kumar"><span>Ajit Kumar</span></label>
+          </div>
+        </div>
+        <div class="field"><label class="q">CAM Doer</label>
+          <div class="options">
+            <label class="opt"><input type="radio" name="CAM Doer" value="Srikant"><span>Srikant</span></label>
+            <label class="opt"><input type="radio" name="CAM Doer" value="Rajesh"><span>Rajesh</span></label>
+            <label class="opt"><input type="radio" name="CAM Doer" value="Rahul"><span>Rahul</span></label>
+            <label class="opt"><input type="radio" name="CAM Doer" value="Ajit Kumar"><span>Ajit Kumar</span></label>
+          </div>
+        </div>
+        <div class="field"><label class="q">Planned CNC Start Date</label>
+          <input type="date" name="Planned CNC Start date (If Available)">
+        </div>
+      </div>
+
+      <!-- PANEL 4 -->
+      <div class="panel">
+        <div class="panel-head"><div class="badge">04</div><div class="ttl">Post-Operation<small>BM1 / Tapping / Pack</small></div></div>
+        <div class="field"><label class="q">Deburring <span class="req">*</span></label>
+          <div class="options yesno">
+            <label class="opt"><input type="radio" name="Deburring" value="Yes" required><span>Yes</span></label>
+            <label class="opt"><input type="radio" name="Deburring" value="No" required><span>No</span></label>
+          </div>
+        </div>
+        <div class="field"><label class="q">Tapping <span class="req">*</span></label>
+          <div class="options yesno">
+            <label class="opt"><input type="radio" name="Tapping" value="Yes" required><span>Yes</span></label>
+            <label class="opt"><input type="radio" name="Tapping" value="No" required><span>No</span></label>
+          </div>
+        </div>
+        <div class="field"><label class="q">Discuss Mathoding with CAM Doer <span class="req">*</span></label>
+          <div class="options yesno">
+            <label class="opt"><input type="radio" name="Discuss Mathoding with CAM Doer" value="Yes" required><span>Yes</span></label>
+            <label class="opt"><input type="radio" name="Discuss Mathoding with CAM Doer" value="No" required><span>No</span></label>
+          </div>
+        </div>
+        <div class="field"><label class="q">Packing Required? <span class="req">*</span></label>
+          <span class="hint">If needed</span>
+          <div class="options yesno">
+            <label class="opt"><input type="radio" name="Packing Required?" value="Yes" required><span>Yes</span></label>
+            <label class="opt"><input type="radio" name="Packing Required?" value="No" required><span>No</span></label>
+          </div>
+        </div>
+      </div>
+
+    </form>
+
+    <div class="footer">
+      <div class="left">
+        <div class="help">Saves to <strong style="color:#fff;">Form Responses 7</strong>. UV "Yes" triggers a WhatsApp alert to the designer.</div>
+        <div id="status"></div>
+      </div>
+      <button type="submit" form="orderForm" id="submitBtn">Submit Response →</button>
+    </div>
+  </div>
+
+  <!-- ============================== PENDING VIEW ============================== -->
+  <div class="view" id="view-pending">
+    <div class="responses-shell">
+      <div class="resp-toolbar">
+        <div class="search-wrap">
+          <input type="search" class="search-input" id="pendingSearch" placeholder="Search pending — client, IE, item, drg…">
+        </div>
+        <button class="btn-ghost" id="pendingRefresh">↻ Refresh</button>
+        <div class="resp-stats">
+          <span class="chip warn"><strong id="pendingTotal">0</strong>&nbsp;Awaiting Plan</span>
+          <span class="chip"><strong id="pendingShown">0</strong>&nbsp;Shown</span>
+        </div>
+      </div>
+
+      <div class="table-wrap" id="pendingTableWrap">
+        <div class="empty-state"><div class="icon">⟳</div><h3>Loading pending orders…</h3><p>Reading OCP sheet.</p></div>
+      </div>
+
+      <div class="pagination" id="pendingPagination" style="display:none;">
+        <span id="pendingPageStatus">—</span>
+        <div class="pager">
+          <button id="pendingPrev" title="Previous">‹</button>
+          <span class="page-info" id="pendingPageInfo">1 / 1</span>
+          <button id="pendingNext" title="Next">›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== RESPONSES VIEW ============================== -->
+  <div class="view" id="view-responses">
+    <div class="responses-shell">
+      <div class="resp-toolbar">
+        <div class="search-wrap">
+          <input type="search" class="search-input" id="searchInput" placeholder="Search across all responses — party, IE no, doer, date…">
+        </div>
+        <button class="btn-ghost" id="refreshBtn">↻ Refresh</button>
+        <div class="resp-stats">
+          <span class="chip"><strong id="totalCount">0</strong>&nbsp;Total</span>
+          <span class="chip"><strong id="shownCount">0</strong>&nbsp;Shown</span>
+        </div>
+      </div>
+
+      <div class="table-wrap" id="tableWrap">
+        <div class="empty-state"><div class="icon">⟳</div><h3>Loading responses…</h3><p>Fetching from Form Responses 7.</p></div>
+      </div>
+
+      <div class="pagination" id="pagination" style="display:none;">
+        <span id="pageStatus">—</span>
+        <div class="pager">
+          <button id="prevPage" title="Previous">‹</button>
+          <span class="page-info" id="pageInfo">1 / 1</span>
+          <button id="nextPage" title="Next">›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">
+  <div class="check">✓</div>
+  <h3>Response submitted</h3>
+  <p>Row added to Form Responses 7.</p>
+  <div class="wa-tag" id="waTag" style="display:none;">✓ WhatsApp alert sent</div>
+</div>
+
+<script>
+  // ====== PASTE YOUR APPS SCRIPT WEB APP URL HERE ======
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbycphbiyOeSfgi5KrmBTmGsSiWMfh4WwmRrkK60LgtrkmGGF9hreJYbxpJdA40Ng2YTMA/exec";
+  // ======================================================
+
+  const UV_MATCH = "u v graphic technologies";
+  const PAGE_SIZE = 50;
+  const PENDING_PAGE_SIZE = 25;
+
+  const d = new Date();
+  document.getElementById('dateNow').textContent =
+    d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+
+  // ============== ENTRY FORM ==============
+  const partyInput = document.getElementById('partyName');
+  const uvField = document.getElementById('uvField');
+  partyInput.addEventListener('input', () => {
+    const v = (partyInput.value || '').toLowerCase().trim();
+    if (v.includes(UV_MATCH)){
+      uvField.style.display = 'block';
+    } else {
+      uvField.style.display = 'none';
+      uvField.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
+    }
+  });
+
+  const form = document.getElementById('orderForm');
+  const statusEl = document.getElementById('status');
+  const submitBtn = document.getElementById('submitBtn');
+  const toast = document.getElementById('toast');
+  const waTag = document.getElementById('waTag');
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (SCRIPT_URL.indexOf('PASTE_YOUR') === 0){
+      statusEl.textContent = 'Set the Apps Script URL first.'; statusEl.className = 'err'; return;
+    }
+    if (!form.checkValidity()){ form.reportValidity(); return; }
+
+    const fd = new FormData(form);
+    const payload = {};
+    fd.forEach((v,k) => { if (v !== '') payload[k] = v; });
+
+    const willSendWA = (
+      (payload['PARTY NAME'] || '').toLowerCase().includes(UV_MATCH) &&
+      payload['Verify Old CAD for UV'] === 'Yes'
+    );
+
+    submitBtn.disabled = true;
+    statusEl.textContent = 'Submitting…'; statusEl.className = '';
+
+    fetch(SCRIPT_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload)
+    })
+    .then(() => {
+      statusEl.textContent = '';
+      waTag.style.display = willSendWA ? 'inline-block' : 'none';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), willSendWA ? 2800 : 2200);
+      clearPrefill();
+      form.reset();
+      uvField.style.display = 'none';
+      submitBtn.disabled = false;
+      responsesData = null;
+      pendingData = null;
+    })
+    .catch(() => {
+      statusEl.textContent = 'Network error — try again.'; statusEl.className = 'err';
+      submitBtn.disabled = false;
+    });
+  });
+
+  toast.addEventListener('click', () => toast.classList.remove('show'));
+
+  // ============== PREFILL ==============
+  const prefillBanner = document.getElementById('prefillBanner');
+  const pfIE = document.getElementById('pfIE');
+  const pfClient = document.getElementById('pfClient');
+  document.getElementById('pfClearBtn').addEventListener('click', clearPrefill);
+
+  function setField(name, value){
+    if (value === null || value === undefined || value === '') return;
+    const el = form.elements[name];
+    if (!el) return;
+    el.value = value;
+    el.classList.add('prefilled');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  function clearPrefill(){
+    prefillBanner.style.display = 'none';
+    form.querySelectorAll('.prefilled').forEach(el => el.classList.remove('prefilled'));
+  }
+  function prefillForm(row){
+    clearPrefill();
+    setField('IE No.', row.ieNo);
+    setField('DRG No.', row.drgNo);
+    setField('QUANTITY', row.qty);
+    setField('ENT No.', row.entNo);
+    setField('PARTY NAME', row.client);
+    setField('ITEM NAME', row.item);
+    setField('DRG LINK', row.drgLink);
+
+    pfIE.textContent = 'IE ' + (row.ieNo || '—');
+    pfClient.textContent = row.client || '—';
+    prefillBanner.style.display = 'flex';
+
+    // switch to entry tab
+    switchTab('entry');
+    // scroll first panel into view
+    setTimeout(() => {
+      const firstInput = form.querySelector('input');
+      firstInput && firstInput.scrollIntoView({ behavior:'smooth', block:'center' });
+    }, 100);
+  }
+
+  // ============== TAB SWITCHING ==============
+  const tabs = document.querySelectorAll('.tab');
+  const views = document.querySelectorAll('.view');
+  function switchTab(target){
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.view === target));
+    views.forEach(v => v.classList.toggle('active', v.id === 'view-' + target));
+    if (target === 'responses' && !responsesData) loadResponses();
+    if (target === 'pending' && !pendingData) loadPending();
+  }
+  tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.view)));
+
+  // ============== RESPONSES VIEW ==============
+  let responsesData = null, filteredRows = [], currentPage = 1, searchTerm = '';
+  const tableWrap = document.getElementById('tableWrap');
+  const searchInput = document.getElementById('searchInput');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const tabCount = document.getElementById('tabCount');
+  const totalCount = document.getElementById('totalCount');
+  const shownCount = document.getElementById('shownCount');
+  const pagination = document.getElementById('pagination');
+  const pageInfo = document.getElementById('pageInfo');
+  const pageStatus = document.getElementById('pageStatus');
+  const prevBtn = document.getElementById('prevPage');
+  const nextBtn = document.getElementById('nextPage');
+
+  function loadResponses(){
+    if (SCRIPT_URL.indexOf('PASTE_YOUR') === 0){
+      tableWrap.innerHTML = `<div class="empty-state"><div class="icon">⚠</div><h3>Apps Script URL not set</h3><p>Paste your Web app URL into the HTML file first.</p></div>`;
+      return;
+    }
+    refreshBtn.classList.add('spinning');
+    tableWrap.innerHTML = `<div class="empty-state"><div class="icon">⟳</div><h3>Loading responses…</h3><p>Fetching from Form Responses 7.</p></div>`;
+
+    fetch(SCRIPT_URL + '?action=responses&t=' + Date.now())
+      .then(r => r.json())
+      .then(data => {
+        refreshBtn.classList.remove('spinning');
+        if (data.result !== 'success'){
+          tableWrap.innerHTML = `<div class="empty-state"><div class="icon">⚠</div><h3>Couldn't load</h3><p>${data.message || 'Unknown error'}</p></div>`;
+          return;
+        }
+        responsesData = data;
+        tabCount.textContent = data.rows.length.toLocaleString('en-IN');
+        applyResponsesFilter();
+      })
+      .catch(err => {
+        refreshBtn.classList.remove('spinning');
+        tableWrap.innerHTML = `<div class="empty-state"><div class="icon">⚠</div><h3>Network error</h3><p>${err.message || 'Could not reach the script.'}</p></div>`;
+      });
+  }
+  refreshBtn.addEventListener('click', loadResponses);
+
+  searchInput.addEventListener('input', () => { searchTerm = searchInput.value.trim().toLowerCase(); currentPage = 1; applyResponsesFilter(); });
+
+  function applyResponsesFilter(){
+    if (!responsesData) return;
+    if (!searchTerm) filteredRows = responsesData.rows;
+    else {
+      const terms = searchTerm.split(/\s+/).filter(Boolean);
+      filteredRows = responsesData.rows.filter(row => {
+        const joined = row.join(' ').toLowerCase();
+        return terms.every(t => joined.includes(t));
+      });
+    }
+    totalCount.textContent = responsesData.rows.length.toLocaleString('en-IN');
+    shownCount.textContent = filteredRows.length.toLocaleString('en-IN');
+    renderResponsesTable();
+  }
+
+  function renderResponsesTable(){
+    if (!responsesData) return;
+    const headers = responsesData.headers;
+    if (filteredRows.length === 0){
+      tableWrap.innerHTML = `<div class="empty-state"><div class="icon">∅</div><h3>No matching responses</h3><p>Try a different search term.</p></div>`;
+      pagination.style.display = 'none'; return;
+    }
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end = Math.min(start + PAGE_SIZE, filteredRows.length);
+    const pageRows = filteredRows.slice(start, end);
+
+    let html = '<table><thead><tr>';
+    headers.forEach(h => html += `<th>${escapeHtml(h)}</th>`);
+    html += '</tr></thead><tbody>';
+    pageRows.forEach(row => {
+      html += '<tr>';
+      row.forEach((cell, i) => {
+        const cellStr = cell == null ? '' : cell.toString();
+        let cls = '';
+        if (i === 0) cls = 'timestamp';
+        else if (cellStr === 'Yes') cls = 'cell-yes';
+        else if (cellStr === 'No') cls = 'cell-no';
+        const display = searchTerm ? highlight(cellStr, searchTerm) : escapeHtml(cellStr);
+        html += `<td class="${cls}" title="${escapeHtml(cellStr)}">${display}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    tableWrap.innerHTML = html;
+
+    pagination.style.display = 'flex';
+    pageStatus.textContent = `Showing ${start + 1}–${end} of ${filteredRows.length.toLocaleString('en-IN')}`;
+    pageInfo.textContent = `${currentPage} / ${totalPages}`;
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+  }
+  prevBtn.addEventListener('click', () => { if (currentPage > 1){ currentPage--; renderResponsesTable(); tableWrap.scrollTop = 0; }});
+  nextBtn.addEventListener('click', () => { currentPage++; renderResponsesTable(); tableWrap.scrollTop = 0; });
+
+  // ============== PENDING VIEW ==============
+  let pendingData = null, pendingFiltered = [], pendingPage = 1, pendingSearch = '';
+  const pendingTableWrap = document.getElementById('pendingTableWrap');
+  const pendingSearchInput = document.getElementById('pendingSearch');
+  const pendingRefreshBtn = document.getElementById('pendingRefresh');
+  const pendingCountEl = document.getElementById('pendingCount');
+  const pendingTotalEl = document.getElementById('pendingTotal');
+  const pendingShownEl = document.getElementById('pendingShown');
+  const pendingPagination = document.getElementById('pendingPagination');
+  const pendingPageInfo = document.getElementById('pendingPageInfo');
+  const pendingPageStatus = document.getElementById('pendingPageStatus');
+  const pendingPrev = document.getElementById('pendingPrev');
+  const pendingNext = document.getElementById('pendingNext');
+
+  function loadPending(){
+    if (SCRIPT_URL.indexOf('PASTE_YOUR') === 0){
+      pendingTableWrap.innerHTML = `<div class="empty-state"><div class="icon">⚠</div><h3>Apps Script URL not set</h3><p>Paste your Web app URL into the HTML file first.</p></div>`;
+      return;
+    }
+    pendingRefreshBtn.classList.add('spinning');
+    pendingTableWrap.innerHTML = `<div class="empty-state"><div class="icon">⟳</div><h3>Loading pending orders…</h3><p>Reading OCP sheet.</p></div>`;
+
+    fetch(SCRIPT_URL + '?action=pending&t=' + Date.now())
+      .then(r => r.json())
+      .then(data => {
+        pendingRefreshBtn.classList.remove('spinning');
+        if (data.result !== 'success'){
+          pendingTableWrap.innerHTML = `<div class="empty-state"><div class="icon">⚠</div><h3>Couldn't load</h3><p>${data.message || 'Unknown error'}</p></div>`;
+          return;
+        }
+        pendingData = data.rows;
+        pendingCountEl.textContent = pendingData.length.toLocaleString('en-IN');
+        applyPendingFilter();
+      })
+      .catch(err => {
+        pendingRefreshBtn.classList.remove('spinning');
+        pendingTableWrap.innerHTML = `<div class="empty-state"><div class="icon">⚠</div><h3>Network error</h3><p>${err.message || 'Could not reach the script.'}</p></div>`;
+      });
+  }
+  pendingRefreshBtn.addEventListener('click', loadPending);
+
+  pendingSearchInput.addEventListener('input', () => { pendingSearch = pendingSearchInput.value.trim().toLowerCase(); pendingPage = 1; applyPendingFilter(); });
+
+  function applyPendingFilter(){
+    if (!pendingData) return;
+    if (!pendingSearch) pendingFiltered = pendingData;
+    else {
+      const terms = pendingSearch.split(/\s+/).filter(Boolean);
+      pendingFiltered = pendingData.filter(r => {
+        const joined = [r.timestamp, r.client, r.item, r.ieNo, r.drgNo, r.qty, r.entNo].join(' ').toLowerCase();
+        return terms.every(t => joined.includes(t));
+      });
+    }
+    pendingTotalEl.textContent = pendingData.length.toLocaleString('en-IN');
+    pendingShownEl.textContent = pendingFiltered.length.toLocaleString('en-IN');
+    renderPendingTable();
+  }
+
+  function renderPendingTable(){
+    if (!pendingData) return;
+    if (pendingFiltered.length === 0){
+      pendingTableWrap.innerHTML = `<div class="empty-state"><div class="icon">∅</div><h3>${pendingData.length === 0 ? 'No pending orders' : 'No matches'}</h3><p>${pendingData.length === 0 ? 'All IE numbers in OCP have actual time filled.' : 'Try a different search term.'}</p></div>`;
+      pendingPagination.style.display = 'none'; return;
+    }
+    const totalPages = Math.max(1, Math.ceil(pendingFiltered.length / PENDING_PAGE_SIZE));
+    if (pendingPage > totalPages) pendingPage = totalPages;
+    const start = (pendingPage - 1) * PENDING_PAGE_SIZE;
+    const end = Math.min(start + PENDING_PAGE_SIZE, pendingFiltered.length);
+    const pageRows = pendingFiltered.slice(start, end);
+
+    let html = '<table><thead><tr>'
+      + '<th>Timestamp</th>'
+      + '<th>Client</th>'
+      + '<th>IE No.</th>'
+      + '<th>Drawing No.</th>'
+      + '<th>Item</th>'
+      + '<th>Qty</th>'
+      + '<th>ENT</th>'
+      + '<th>DRG Link</th>'
+      + '<th style="text-align:center;">Action</th>'
+      + '</tr></thead><tbody>';
+
+    pageRows.forEach((r, idx) => {
+      const realIdx = start + idx;
+      const isUV = (r.client || '').toLowerCase().includes(UV_MATCH);
+      const drgLinkCell = r.drgLink
+        ? `<a href="${escapeAttr(r.drgLink)}" target="_blank" rel="noopener" style="color:#7c3aed;text-decoration:underline;">open</a>`
+        : '—';
+      const clientDisplay = pendingSearch ? highlight(r.client || '', pendingSearch) : escapeHtml(r.client || '');
+      const ieDisplay = pendingSearch ? highlight(r.ieNo || '', pendingSearch) : escapeHtml(r.ieNo || '');
+      const itemDisplay = pendingSearch ? highlight(r.item || '', pendingSearch) : escapeHtml(r.item || '');
+
+      html += `<tr>
+        <td class="timestamp">${escapeHtml(r.timestamp || '')}</td>
+        <td class="${isUV ? 'client-uv' : ''}" title="${escapeAttr(r.client || '')}">${clientDisplay}${isUV ? ' ⚡' : ''}</td>
+        <td title="${escapeAttr(r.ieNo || '')}">${ieDisplay}</td>
+        <td title="${escapeAttr(r.drgNo || '')}">${escapeHtml(r.drgNo || '')}</td>
+        <td title="${escapeAttr(r.item || '')}">${itemDisplay}</td>
+        <td>${escapeHtml(r.qty || '')}</td>
+        <td>${escapeHtml(r.entNo || '')}</td>
+        <td>${drgLinkCell}</td>
+        <td style="text-align:center;"><button class="plan-btn" data-idx="${realIdx}">Plan →</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    pendingTableWrap.innerHTML = html;
+
+    pendingTableWrap.querySelectorAll('.plan-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        const row = pendingFiltered[idx];
+        if (row) prefillForm(row);
+      });
+    });
+
+    pendingPagination.style.display = 'flex';
+    pendingPageStatus.textContent = `Showing ${start + 1}–${end} of ${pendingFiltered.length.toLocaleString('en-IN')}`;
+    pendingPageInfo.textContent = `${pendingPage} / ${totalPages}`;
+    pendingPrev.disabled = pendingPage === 1;
+    pendingNext.disabled = pendingPage === totalPages;
+  }
+  pendingPrev.addEventListener('click', () => { if (pendingPage > 1){ pendingPage--; renderPendingTable(); pendingTableWrap.scrollTop = 0; }});
+  pendingNext.addEventListener('click', () => { pendingPage++; renderPendingTable(); pendingTableWrap.scrollTop = 0; });
+
+  // ============== UTILS ==============
+  function escapeHtml(s){
+    return (s || '').toString()
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function escapeAttr(s){ return escapeHtml(s); }
+  function highlight(text, term){
+    const safe = escapeHtml(text);
+    const terms = term.split(/\s+/).filter(Boolean);
+    let result = safe;
+    terms.forEach(t => {
+      const re = new RegExp('(' + t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+      result = result.replace(re, '<span class="match">$1</span>');
+    });
+    return result;
+  }
+
+  // preload pending count in background so the tab badge shows a number on first load
+  setTimeout(() => { if (!pendingData && SCRIPT_URL.indexOf('PASTE_YOUR') !== 0) loadPending(); }, 800);
+</script>
+
+</body>
+</html>
